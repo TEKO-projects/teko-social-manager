@@ -1,5 +1,6 @@
 "use client";
 
+import { useConfirm } from "@/components/ConfirmDialog";
 import { useState, useEffect } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { api } from "@/lib/api";
@@ -31,6 +32,7 @@ const defaultMessages: WorkspaceSocialMeta["comments"]["messages"] = {
 };
 
 export default function CommentsPage() {
+  const confirm = useConfirm();
   const { status } = useAuth();
   const igConnected = status?.instagram.connected;
 
@@ -118,6 +120,8 @@ export default function CommentsPage() {
   }
 
   async function handleDelete(commentId: string) {
+    const ok = await confirm({ title: "¿Eliminar este comentario?", description: "Se borra de Instagram y no se puede deshacer. Si solo quieres esconderlo, usa «Ocultar».", confirmLabel: "Eliminar", destructive: true });
+    if (!ok) return;
     try {
       await api(`/instagram/comments/${commentId}`, { method: "DELETE" });
       setComments((prev) => prev.filter((c) => c.id !== commentId));

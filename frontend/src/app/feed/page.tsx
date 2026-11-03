@@ -28,6 +28,7 @@ import { Textarea } from "@/components/ui/textarea";
 import ImageUpload from "@/components/ImageUpload";
 import FolderImport from "@/components/FolderImport";
 import { useToast } from "@/components/Toaster";
+import { useConfirm } from "@/components/ConfirmDialog";
 
 const SWATCHES = ["#d7f36a", "#c4b5fd", "#a7e8c9", "#f6e27f", "#f7a8cf", "#a9cdf5", "#f7c09b"];
 
@@ -74,6 +75,7 @@ function FeedPlanner() {
   const params = useSearchParams();
   const { status } = useAuth();
   const toast = useToast();
+  const confirm = useConfirm();
 
   const [posts, setPosts] = useState<ScheduledPost[]>([]);
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
@@ -217,39 +219,101 @@ function FeedPlanner() {
     setPicked([]);
   }
 
-  /** Une los posts elegidos (en el orden del feed) en un solo carrusel; el primero lo conserva. Se puede deshacer separando. */
+  /** Une los posts elegidos (en el orden del feed) en carruseles de hasta MAX_SLIDES láminas; el primero de cada grupo los conserva. */
   async function mergePicked() {
-    const chosen = planned.filter((p) => picked.includes(p.id));
-    if (chosen.length < 2) return;
-    const urls = chosen.flatMap((p) => p.media_urls ?? []);
-    if (urls.length > MAX_SLIDES) {
-      toast("error", "Demasiadas láminas", `Un carrusel admite ${MAX_SLIDES} y seleccionaste ${urls.length}.`);
+    const chosen = planned.filter((p) => picked.includes(p.id) && (p.media_urls?.length ?? 0) > 0);
+    if (chosen.length < 2) {
+      toast("error", "Elige al menos 2 posts con imagen");
       return;
     }
-    if (urls.some(isVideoUrl)) {
+    if (chosen.some((p) => (p.media_urls ?? []).some(isVideoUrl))) {
       toast("error", "No se pueden unir videos", "Los carruseles solo admiten imágenes.");
       return;
     }
-    const [target, ...rest] = chosen;
+
+    // Si juntas más de MAX_SLIDES imágenes, se reparten en varios carruseles respetando el orden.
+    const groups: ScheduledPost[][] = [];
+    let count = 0;
+    for (const p of chosen) {
+      const n = p.media_urls?.length ?? 0;
+      if (!groups.length || count + n > MAX_SLIDES) {
+        groups.push([]);
+        count = 0;
+      }
+      groups[groups.length - 1].push(p);
+      count += n;
+    }
+    const merges = groups.filter((g) => g.length > 1);
+    if (!merges.length) {
+      toast("error", "No hay nada que unir", `Cada grupo de ${MAX_SLIDES} láminas quedaría con un solo post.`);
+      return;
+    }
+
+    const ok = await confirm({
+      title: merges.length === 1 ? "Unir en un carrusel" : `Unir en ${merges.length} carruseles`,
+      description:
+        "Se juntan en el orden del feed. Los posts que se unan desaparecen del feed, pero sus imágenes quedan dentro del carrusel; puedes disolverlo cuando quieras.",
+      confirmLabel: "Unir",
+      preview: (
+        <div className="max-h-60 space-y-3 overflow-y-auto">
+          {merges.map((g, i) => {
+            const urls = g.flatMap((p) => p.media_urls ?? []);
+            return (
+              <div key={i}>
+                <p className="mb-1 text-xs text-muted-foreground">
+                  Carrusel {i + 1} · {urls.length} láminas
+                </p>
+                <div className="flex gap-1.5 overflow-x-auto pb-1">
+                  {urls.map((u, j) => (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img key={`${u}-${j}`} src={u} alt="" className="h-16 w-12 shrink-0 rounded-md border border-border object-cover" />
+                  ))}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      ),
+    });
+    if (!ok) return;
+
+    const gone = new Set<number>();
+    const updatedById = new Map<number, ScheduledPost>();
     try {
-      const updated = await api<ScheduledPost>(`/scheduled-posts/${target.id}`, {
-        method: "PATCH",
-        body: { media_urls: urls, type: "carousel" },
-      });
-      await Promise.all(rest.map((p) => api(`/scheduled-posts/${p.id}`, { method: "DELETE" })));
-      const gone = new Set(rest.map((p) => p.id));
-      setPosts((prev) => prev.filter((p) => !gone.has(p.id)).map((p) => (p.id === target.id ? { ...p, ...updated } : p)));
-      stopSelecting();
-      setSelectedId(target.id);
-      toast("success", `${chosen.length} posts unidos en un carrusel`, "Si te arrepientes, ábrelo y sepáralo.");
+      for (const g of merges) {
+        const [target, ...rest] = g;
+        updatedById.set(
+          target.id,
+          await api<ScheduledPost>(`/scheduled-posts/${target.id}`, {
+            method: "PATCH",
+            body: { media_urls: g.flatMap((p) => p.media_urls ?? []), type: "carousel" },
+          })
+        );
+        await Promise.all(rest.map((p) => api(`/scheduled-posts/${p.id}`, { method: "DELETE" })));
+        rest.forEach((p) => gone.add(p.id));
+      }
+      toast("success", merges.length === 1 ? "Carrusel creado" : `${merges.length} carruseles creados`, "Si te arrepientes, ábrelo y sepáralo.");
     } catch (e) {
-      toast("error", "No se pudo unir", e instanceof Error ? e.message : undefined);
+      toast("error", "No se pudo unir todo", e instanceof Error ? e.message : undefined);
       load();
     }
+    setPosts((prev) => prev.filter((p) => !gone.has(p.id)).map((p) => (updatedById.has(p.id) ? { ...p, ...updatedById.get(p.id) } : p)));
+    stopSelecting();
+    const first = [...updatedById.keys()][0];
+    if (first) setSelectedId(first);
   }
 
   /** Disuelve carruseles: cada lámina pasa a ser un post propio y el original conserva solo la primera. */
   async function dissolvePosts(targets: ScheduledPost[]) {
+    const eligible = targets.filter((p) => (p.media_urls?.length ?? 0) > 1);
+    if (!eligible.length) return;
+    const slides = eligible.reduce((n, p) => n + (p.media_urls?.length ?? 0), 0);
+    const ok = await confirm({
+      title: eligible.length === 1 ? "Disolver este carrusel" : `Disolver ${eligible.length} carruseles`,
+      description: `Cada lámina pasará a ser un post independiente (${slides} posts en total). Los textos no se copian. Podrás volver a unirlos desde «Seleccionar y unir».`,
+      confirmLabel: "Disolver",
+    });
+    if (!ok) return;
     setDissolving(true);
     const created = new Map<number, ScheduledPost[]>();
     const updatedById = new Map<number, ScheduledPost>();
@@ -341,6 +405,21 @@ function FeedPlanner() {
     } catch (e) {
       setError(e instanceof Error ? e.message : "No se pudo eliminar");
     }
+  }
+
+  async function confirmDelete(id: number) {
+    const src = posts.find((p) => p.id === id)?.media_urls?.[0];
+    const ok = await confirm({
+      title: "¿Eliminar este post?",
+      description: "Se quitará del plan y no se puede deshacer.",
+      confirmLabel: "Eliminar",
+      destructive: true,
+      preview: src ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={src} alt="" className="mx-auto h-28 rounded-lg border border-border object-cover" />
+      ) : undefined,
+    });
+    if (ok) await deletePost(id);
   }
 
   async function deleteCampaign(c: Campaign) {
@@ -589,7 +668,7 @@ function FeedPlanner() {
               onDragLeave={() => setOverId((o) => (o === -1 ? null : o))}
               onDrop={(e) => {
                 e.preventDefault();
-                if (dragId != null) deletePost(dragId);
+                if (dragId != null) void confirmDelete(dragId);
                 setDragId(null);
                 setOverId(null);
               }}
@@ -738,8 +817,6 @@ function CarouselsView({
   busy: boolean;
   onDissolve: (targets: ScheduledPost[]) => void;
 }) {
-  const [confirming, setConfirming] = useState(false);
-
   if (posts.length === 0) {
     return (
       <div className="teko-card p-10 text-center text-sm text-muted-foreground">
@@ -750,39 +827,22 @@ function CarouselsView({
 
   const chosen = posts.filter((p) => picked.includes(p.id));
   const allPicked = chosen.length === posts.length;
-  const slides = chosen.reduce((n, p) => n + (p.media_urls?.length ?? 0), 0);
-
   return (
     <div className="space-y-4">
       <div className="teko-card flex flex-wrap items-center justify-between gap-3 p-3">
         <button
           type="button"
           disabled={busy}
-          onClick={() => {
-            setConfirming(false);
-            onPick(allPicked ? [] : posts.map((p) => p.id));
-          }}
+          onClick={() => onPick(allPicked ? [] : posts.map((p) => p.id))}
           className="text-sm text-muted-foreground hover:text-foreground disabled:opacity-50"
         >
           {allPicked ? "Quitar selección" : `Seleccionar todos (${posts.length})`}
         </button>
 
-        {confirming ? (
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="text-sm">
-              ¿Disolver {chosen.length} carrusel(es)? Quedarán {slides} posts sueltos.
-            </span>
-            <Button size="sm" variant="destructive" disabled={busy} onClick={() => { setConfirming(false); onDissolve(chosen); }}>
-              {busy ? "Disolviendo…" : "Sí, disolver"}
-            </Button>
-            <Button size="sm" variant="ghost" disabled={busy} onClick={() => setConfirming(false)}>Cancelar</Button>
-          </div>
-        ) : (
-          <Button size="sm" disabled={busy || chosen.length === 0} onClick={() => setConfirming(true)}>
-            <Scissors className="size-4" />
-            Disolver seleccionados{chosen.length ? ` (${chosen.length})` : ""}
-          </Button>
-        )}
+        <Button size="sm" disabled={busy || chosen.length === 0} onClick={() => onDissolve(chosen)}>
+          <Scissors className="size-4" />
+          {busy ? "Disolviendo…" : `Disolver seleccionados${chosen.length ? ` (${chosen.length})` : ""}`}
+        </Button>
       </div>
 
       {posts.map((p, n) => {
@@ -802,7 +862,7 @@ function CarouselsView({
                 type="checkbox"
                 checked={isPicked}
                 disabled={busy}
-                onChange={() => { setConfirming(false); onPick(isPicked ? picked.filter((x) => x !== p.id) : [...picked, p.id]); }}
+                onChange={() => onPick(isPicked ? picked.filter((x) => x !== p.id) : [...picked, p.id])}
                 aria-label={`Seleccionar carrusel ${n + 1}`}
               />
               <button type="button" onClick={() => onOpen(p.id)} className="min-w-0 flex-1 text-left">
@@ -1149,6 +1209,7 @@ function PostEditor({
   onNudge: (delta: number) => void;
   onExtract: (base: string[], urls: string[]) => Promise<string[] | null>;
 }) {
+  const confirm = useConfirm();
   const [caption, setCaption] = useState(post.caption ?? "");
   const [media, setMedia] = useState<string[]>(post.media_urls ?? []);
   const [type, setType] = useState(post.type === "text" ? "photo" : post.type);
@@ -1179,6 +1240,15 @@ function PostEditor({
   }
 
   async function extract(urls: string[]) {
+    const ok = await confirm({
+      title: urls.length === 1 ? "Separar esta lámina" : `Separar ${urls.length} láminas`,
+      description:
+        urls.length === 1
+          ? "La lámina pasará a ser un post independiente en tu feed."
+          : "Cada lámina pasará a ser un post independiente. Este carrusel conservará solo la primera.",
+      confirmLabel: "Separar",
+    });
+    if (!ok) return;
     setSaving(true);
     const remaining = await onExtract(media, urls);
     if (remaining) {

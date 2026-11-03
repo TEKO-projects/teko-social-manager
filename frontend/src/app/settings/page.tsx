@@ -1,5 +1,6 @@
 "use client";
 
+import { useConfirm } from "@/components/ConfirmDialog";
 import { FormEvent, useState } from "react";
 import { useAuth } from "@/context/AuthContext";
 import Card from "@/components/Card";
@@ -14,6 +15,7 @@ import PasskeysCard from "@/components/PasskeysCard";
 
 export default function SettingsPage() {
   const { status, user, disconnectSocial, updateEmail, updatePassword } = useAuth();
+  const confirm = useConfirm();
   const [disconnecting, setDisconnecting] = useState(false);
 
   const [email, setEmail] = useState(user?.email ?? "");
@@ -31,6 +33,20 @@ export default function SettingsPage() {
 
   const igConnected = status?.instagram.connected;
   const fbConnected = status?.facebook.connected;
+
+  const disconnect = async (platform?: "instagram" | "facebook") => {
+    const name = platform === "instagram" ? "Instagram" : platform === "facebook" ? "Facebook" : "Instagram y Facebook";
+    const ok = await confirm({
+      title: `¿Desconectar ${name}?`,
+      description: "Dejarás de ver sus mensajes, comentarios y estadísticas, y no podrás publicar ahí hasta volver a conectar. Tus borradores y campañas no se borran.",
+      confirmLabel: "Desconectar",
+      destructive: true,
+    });
+    if (!ok) return;
+    setDisconnecting(true);
+    await disconnectSocial(platform);
+    setDisconnecting(false);
+  };
 
   const submitEmail = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -146,7 +162,7 @@ export default function SettingsPage() {
                   variant="outline"
                   size="sm"
                   disabled={disconnecting}
-                  onClick={async () => { setDisconnecting(true); await disconnectSocial("instagram"); setDisconnecting(false); }}
+                  onClick={() => disconnect("instagram")}
                 >
                   Desconectar Instagram
                 </Button>
@@ -156,7 +172,7 @@ export default function SettingsPage() {
                   variant="outline"
                   size="sm"
                   disabled={disconnecting}
-                  onClick={async () => { setDisconnecting(true); await disconnectSocial("facebook"); setDisconnecting(false); }}
+                  onClick={() => disconnect("facebook")}
                 >
                   Desconectar Facebook
                 </Button>
@@ -167,7 +183,7 @@ export default function SettingsPage() {
                   size="sm"
                   className="text-error hover:text-error hover:bg-error-light"
                   disabled={disconnecting}
-                  onClick={async () => { setDisconnecting(true); await disconnectSocial(); setDisconnecting(false); }}
+                  onClick={() => disconnect()}
                 >
                   Desconectar todo
                 </Button>

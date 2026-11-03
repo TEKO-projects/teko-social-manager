@@ -6,6 +6,7 @@ import { AuthProvider } from "@/context/AuthContext";
 import { ThemeProvider } from "@/context/ThemeContext";
 import AppShell from "@/components/AppShell";
 import { ToastProvider } from "@/components/Toaster";
+import { ConfirmProvider } from "@/components/ConfirmDialog";
 
 const geistSans = Manrope({
   variable: "--font-geist-sans",
@@ -39,7 +40,9 @@ export default function RootLayout({
         <ThemeProvider>
           <AuthProvider>
             <ToastProvider>
-              <AppShell>{children}</AppShell>
+              <ConfirmProvider>
+                <AppShell>{children}</AppShell>
+              </ConfirmProvider>
             </ToastProvider>
           </AuthProvider>
         </ThemeProvider>

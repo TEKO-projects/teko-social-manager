@@ -1,5 +1,6 @@
 "use client";
 
+import { useConfirm } from "@/components/ConfirmDialog";
 import { useToast } from "@/components/Toaster";
 import { useState, useEffect } from "react";
 import { ChevronLeft, ChevronRight, ImageOff } from "lucide-react";
@@ -55,6 +56,7 @@ function movePostToDate(post: ScheduledPost, targetDate: Date) {
 
 export default function PlannerPage() {
   const toast = useToast();
+  const confirm = useConfirm();
   const [posts, setPosts] = useState<ScheduledPost[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -115,7 +117,8 @@ export default function PlannerPage() {
   }
 
   async function handleDelete(post: ScheduledPost) {
-    if (!confirm("¿Eliminar este post programado?")) return;
+    const ok = await confirm({ title: "¿Eliminar este post programado?", description: "Se cancela su publicación y no se puede deshacer.", confirmLabel: "Eliminar", destructive: true });
+    if (!ok) return;
     setDeleting(post.id);
     try {
       await api(`/scheduled-posts/${post.id}`, { method: "DELETE" });
@@ -244,7 +247,8 @@ export default function PlannerPage() {
   async function handleBulkDelete() {
     if (selectedIds.length === 0) return;
 
-    if (!confirm(`¿Eliminar ${selectedIds.length} post(s) seleccionados?`)) return;
+    const ok = await confirm({ title: `¿Eliminar ${selectedIds.length} post(s)?`, description: "Se cancelan sus publicaciones y no se puede deshacer.", confirmLabel: "Eliminar", destructive: true });
+    if (!ok) return;
 
     setDeletingBulk(true);
     let deleted = 0;

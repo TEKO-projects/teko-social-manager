@@ -105,7 +105,8 @@ export const guides: Guide[] = [
     ],
     tips: [
       "Disolver y unir se deshacen entre sí: si te equivocas, haz la operación contraria.",
-      "Un carrusel necesita entre 2 y 10 imágenes. No se pueden unir videos.",
+      "Un carrusel necesita entre 2 y 10 imágenes. Si unes más de 10, el sistema las reparte en varios carruseles y te lo muestra antes de confirmar. No se pueden unir videos.",
+      "Antes de disolver, unir, separar o eliminar algo, el sistema te pide confirmación y te dice qué va a pasar.",
       "Los posts nuevos que salen de disolver o separar no heredan el texto del original.",
     ],
   },

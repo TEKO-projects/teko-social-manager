@@ -1,5 +1,6 @@
 "use client";
 
+import { useConfirm } from "@/components/ConfirmDialog";
 import { useEffect, useState, useSyncExternalStore } from "react";
 import { Fingerprint, Trash2 } from "lucide-react";
 import { api } from "@/lib/api";
@@ -12,6 +13,7 @@ const when = (iso: string | null) => (iso ? new Date(iso).toLocaleDateString("es
 /** Acceso rápido: activa Touch ID / llavero para entrar sin escribir correo y contraseña. */
 export default function PasskeysCard() {
   const toast = useToast();
+  const confirm = useConfirm();
   const supported = useSyncExternalStore(() => () => {}, passkeysSupported, () => false);
   const [passkeys, setPasskeys] = useState<Passkey[] | null>(null);
   const [busy, setBusy] = useState(false);
@@ -34,6 +36,13 @@ export default function PasskeysCard() {
   }
 
   async function remove(p: Passkey) {
+    const ok = await confirm({
+      title: `¿Quitar «${p.name}»?`,
+      description: "Dejarás de poder entrar con la huella en ese dispositivo. Seguirás entrando con tu correo y contraseña.",
+      confirmLabel: "Quitar",
+      destructive: true,
+    });
+    if (!ok) return;
     try {
       await api(`/auth/passkeys/${p.id}`, { method: "DELETE" });
       setPasskeys((cur) => (cur ?? []).filter((x) => x.id !== p.id));

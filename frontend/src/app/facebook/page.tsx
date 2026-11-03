@@ -1,5 +1,6 @@
 "use client";
 
+import { useConfirm } from "@/components/ConfirmDialog";
 import { useToast } from "@/components/Toaster";
 import { useEffect, useState } from "react";
 import { useAuth } from "@/context/AuthContext";
@@ -11,6 +12,7 @@ import type { FacebookPage, FacebookPost, InsightMetric } from "@/lib/types";
 
 export default function FacebookPageView() {
   const toast = useToast();
+  const confirm = useConfirm();
   const { status, loading } = useAuth();
   const [page, setPage] = useState<FacebookPage | null>(null);
   const [posts, setPosts] = useState<FacebookPost[]>([]);
@@ -50,7 +52,8 @@ export default function FacebookPageView() {
   };
 
   async function handleDelete(postId: string) {
-    if (!confirm("¿Eliminar esta publicación?")) return;
+    const ok = await confirm({ title: "¿Eliminar esta publicación?", description: "Se borra de tu Página de Facebook y no se puede deshacer.", confirmLabel: "Eliminar", destructive: true });
+    if (!ok) return;
     try {
       await api(`/facebook/posts/${postId}`, { method: "DELETE" });
       setPosts((prev) => prev.filter((p) => p.id !== postId));

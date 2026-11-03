@@ -1,5 +1,6 @@
 "use client";
 
+import { useConfirm } from "@/components/ConfirmDialog";
 import { useState, useEffect } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { api } from "@/lib/api";
@@ -106,6 +107,7 @@ function IGPosts({ messages }: { messages: WorkspaceSocialMeta["posts"]["message
   const [posts, setPosts] = useState<MediaItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState<MediaItem | null>(null);
+  const confirm = useConfirm();
   const [deleting, setDeleting] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
 
@@ -121,7 +123,8 @@ function IGPosts({ messages }: { messages: WorkspaceSocialMeta["posts"]["message
   }, []);
 
   async function handleDelete(id: string) {
-    if (!confirm(messages.instagram_delete_confirm)) return;
+    const ok = await confirm({ title: messages.instagram_delete_confirm, description: "Esta acción no se puede deshacer.", confirmLabel: "Eliminar", destructive: true });
+    if (!ok) return;
     setDeleting(true);
     try {
       await api(`/instagram/comments/${id}`, { method: "DELETE" });
@@ -248,6 +251,7 @@ function FBPosts({ messages }: { messages: WorkspaceSocialMeta["posts"]["message
   const [selected, setSelected] = useState<FacebookPost | null>(null);
   const [editMsg, setEditMsg] = useState("");
   const [editing, setEditing] = useState(false);
+  const confirm = useConfirm();
   const [deleting, setDeleting] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
 
@@ -283,7 +287,9 @@ function FBPosts({ messages }: { messages: WorkspaceSocialMeta["posts"]["message
   }
 
   async function handleDelete() {
-    if (!selected || !confirm(messages.facebook_delete_confirm)) return;
+    if (!selected) return;
+    const ok = await confirm({ title: messages.facebook_delete_confirm, description: "Esta acción no se puede deshacer.", confirmLabel: "Eliminar", destructive: true });
+    if (!ok) return;
     setDeleting(true);
     try {
       await api(`/facebook/posts/${selected.id}`, { method: "DELETE" });
