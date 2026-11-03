@@ -15,6 +15,7 @@ import {
   Merge,
   Scissors,
   Check,
+  Eye,
   X,
 } from "lucide-react";
 import { api, formatNum } from "@/lib/api";
@@ -29,6 +30,7 @@ import ImageUpload from "@/components/ImageUpload";
 import FolderImport from "@/components/FolderImport";
 import { useToast } from "@/components/Toaster";
 import { useConfirm } from "@/components/ConfirmDialog";
+import PostPreview from "@/components/PostPreview";
 
 const SWATCHES = ["#d7f36a", "#c4b5fd", "#a7e8c9", "#f6e27f", "#f7a8cf", "#a9cdf5", "#f7c09b"];
 
@@ -708,6 +710,10 @@ function FeedPlanner() {
             onDelete={() => deletePost(selected.id)}
             onNudge={(d) => nudge(selected.id, d)}
             onExtract={(base, urls) => extractSlides(selected, base, urls)}
+            account={{
+              name: (selected.campaign_id ? campaignById.get(selected.campaign_id)?.profile_name : null) || activeCampaign?.profile_name || profile?.username || "tu_cuenta",
+              avatar: profile?.profile_picture_url,
+            }}
           />
         ) : (
           <CampaignPanel
@@ -1198,6 +1204,7 @@ function PostEditor({
   onDelete,
   onNudge,
   onExtract,
+  account,
 }: {
   post: ScheduledPost;
   campaigns: Campaign[];
@@ -1208,8 +1215,10 @@ function PostEditor({
   onDelete: () => void;
   onNudge: (delta: number) => void;
   onExtract: (base: string[], urls: string[]) => Promise<string[] | null>;
+  account: { name: string; avatar?: string };
 }) {
   const confirm = useConfirm();
+  const [previewing, setPreviewing] = useState(false);
   const [caption, setCaption] = useState(post.caption ?? "");
   const [media, setMedia] = useState<string[]>(post.media_urls ?? []);
   const [type, setType] = useState(post.type === "text" ? "photo" : post.type);
@@ -1387,6 +1396,20 @@ function PostEditor({
           <input id="p-when" type="datetime-local" className="ui-control" value={when} onChange={(e) => setWhen(e.target.value)} />
         </div>
       </div>
+
+      <Button variant="ghost" onClick={() => setPreviewing(true)} className="w-full">
+        <Eye className="size-4" />
+        Vista previa
+      </Button>
+      <PostPreview
+        open={previewing}
+        onOpenChange={setPreviewing}
+        account={account}
+        type={type}
+        media={media}
+        caption={caption}
+        when={when ? new Date(when).toISOString() : null}
+      />
 
       <div className="flex flex-wrap gap-2 pt-1">
         <Button variant="outline" disabled={saving} onClick={() => save("draft")} className="flex-1">
