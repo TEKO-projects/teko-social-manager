@@ -41,15 +41,19 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
             <div
               key={id}
               role={kind === "error" ? "alert" : "status"}
-              className="pointer-events-auto flex gap-3 rounded-2xl border border-white/10 bg-[#161617]/95 p-4 text-white shadow-2xl backdrop-blur-xl animate-in fade-in slide-in-from-top-2"
-              style={{ borderLeft: `3px solid ${color}` }}
+              className="pointer-events-auto flex items-start gap-3 rounded-2xl bg-popover/75 p-3.5 pr-3 text-popover-foreground shadow-xl ring-1 ring-foreground/10 backdrop-blur-xl animate-in fade-in slide-in-from-top-2"
             >
-              <Icon className="mt-0.5 size-5 shrink-0" style={{ color }} />
-              <div className="min-w-0 flex-1">
+              <span
+                className="flex size-8 shrink-0 items-center justify-center rounded-full"
+                style={{ color, background: `color-mix(in srgb, ${color} 16%, transparent)` }}
+              >
+                <Icon className="size-[18px]" />
+              </span>
+              <div className="min-w-0 flex-1 pt-0.5">
                 <p className="text-sm font-semibold leading-snug">{title}</p>
-                {description && <p className="mt-1 text-xs leading-relaxed text-white/65">{description}</p>}
+                {description && <p className="mt-0.5 text-xs leading-relaxed text-muted-foreground">{description}</p>}
               </div>
-              <button onClick={() => dismiss(id)} aria-label="Cerrar" className="shrink-0 self-start text-white/40 hover:text-white">
+              <button onClick={() => dismiss(id)} aria-label="Cerrar" className="shrink-0 rounded-full p-1 text-muted-foreground transition-colors hover:bg-foreground/10 hover:text-foreground">
                 <X className="size-4" />
               </button>
             </div>
