@@ -38,6 +38,7 @@ export default function LegalLayout({
 
         <footer className="mt-6 flex justify-center gap-5 text-xs text-white/50">
           <Link href="/privacy" className="hover:text-white">Privacidad</Link>
+          <Link href="/terms" className="hover:text-white">Términos</Link>
           <Link href="/data-deletion" className="hover:text-white">Eliminación de datos</Link>
         </footer>
         <PoweredBy className="mt-4 text-center text-white/40" />

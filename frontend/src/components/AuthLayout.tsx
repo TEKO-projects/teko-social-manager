@@ -69,6 +69,7 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
       {/* enlaces legales visibles para Meta y para cualquier usuario antes de entrar */}
       <div className="absolute bottom-4 right-6 flex gap-4 text-[11px] text-white/50">
         <Link href="/privacy" className="hover:text-white">Privacidad</Link>
+        <Link href="/terms" className="hover:text-white">Términos</Link>
         <Link href="/data-deletion" className="hover:text-white">Eliminación de datos</Link>
       </div>
     </div>

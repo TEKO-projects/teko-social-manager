@@ -13,7 +13,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
 
   const isAuthRoute = pathname === "/login" || pathname === "/register" || pathname === "/forgot-password";
 
-  const isPublicRoute = pathname === "/privacy" || pathname === "/data-deletion"; // requeridas por Meta, sin login
+  const isPublicRoute = pathname === "/privacy" || pathname === "/terms" || pathname === "/data-deletion"; // requeridas por Meta, sin login
 
   useEffect(() => {
     if (loading || isPublicRoute) return;
