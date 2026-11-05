@@ -19,7 +19,8 @@ Route::get('/auth/me', [AuthController::class, 'me']);
 Route::post('/auth/logout', [AuthController::class, 'logout']);
 Route::post('/auth/disconnect', [AuthController::class, 'disconnectSocial']);
 
-// Diagnostic endpoint (temporary)
+// Diagnostic endpoints: SOLO en entorno local (antes eran públicos en producción; /debug/migrate ejecutaba migrate:fresh).
+if (app()->environment('local')) {
 Route::get('/debug/db', function () {
     try {
         $dbPath = config('database.connections.sqlite.database');
@@ -64,10 +65,11 @@ Route::post('/debug/migrate', function () {
         return response()->json(['error' => $e->getMessage(), 'trace' => $e->getTraceAsString()], 500);
     }
 });
+}
 
 // System auth (email/password)
 Route::post('/auth/system/register', [SystemAuthController::class, 'register']);
-Route::post('/debug/register', function (\Illuminate\Http\Request $request) {
+if (app()->environment('local')) Route::post('/debug/register', function (\Illuminate\Http\Request $request) {
     try {
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:120'],
