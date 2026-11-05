@@ -88,7 +88,7 @@ SESSION_DRIVER=database
 
 # Meta API
 META_APP_ID=1474947117151473
-META_APP_SECRET=6f3c804b6d94fdbeb66f9919a85e2e37
+META_APP_SECRET=<ROTAR-Y-CONFIGURAR-EN-ENV>
 META_REDIRECT_URI=https://orange-yaks-greet.loca.lt/auth/callback  # ⚠️ CAMBIAR SI TÚNEL SE REINICIA
 META_VERIFY_SSL=false
 
@@ -163,7 +163,7 @@ frontend/
 
 ## 🔐 Datos Sensibles (No Compartir)
 
-- **META_APP_SECRET**: `6f3c804b6d94fdbeb66f9919a85e2e37` (¡Proteger en producción!)
+- **META_APP_SECRET**: `<ROTAR-Y-CONFIGURAR-EN-ENV>` (¡Proteger en producción!)
 - **Instagram Business Account**: Vinculado a app ID `1474947117151473`
 - **Tokens de sesión**: Guardados en base de datos SQLite bajo `sessions` table
 
